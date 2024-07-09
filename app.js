@@ -9,10 +9,12 @@ require('./database/connection')
 //Routers
 const auth = require('./routers/auth');
 const categories = require('./routers/categories');
+const brands = require('./routers/brands');
 
 //Configuración de routers
 app.use('/api', auth);
 app.use('/api', categories);
+app.use('/api', brands);
 
 app.get('/', (req, res) => {
   res.send('API en funcionamiento');
