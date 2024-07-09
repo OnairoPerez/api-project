@@ -1,5 +1,5 @@
 const { hashSync, compareSync, genSaltSync } = require('bcrypt');
-const { sms, check } = require('../functions/utils')
+const { sms, check } = require('../functions/utils');
 const express = require('express');
 
 //Modelos
