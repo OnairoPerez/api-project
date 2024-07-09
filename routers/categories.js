@@ -10,7 +10,7 @@ router.use(express.json());
 
 //Eviar al cliente todas las categorias
 router.get('/categories', (req, res) => {
-  Categories.find({}).select({_id: 0, __v:0})
+  Categories.find({}).select({__v:0})
     .then(data => {
       let message = sms('Successful operation');
       message['documents'] = data;
