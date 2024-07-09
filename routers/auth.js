@@ -1,4 +1,5 @@
 const { hashSync, compareSync, genSaltSync } = require('bcrypt');
+const { sms, check } = require('../functions/utils')
 const express = require('express');
 
 //Modelos
@@ -6,23 +7,6 @@ const Auth = require('../database/models/Auth');
 
 const router = express.Router();
 router.use(express.json());
-
-//Mensaje en fomato json del servidor
-function sms(text) {
-	return {message: text}
-}
-
-//Verificar el tipo de dato y el contenido de una variable
-function check(variable, datatype = 'string') {
-  if (variable == null) {
-    return true;
-  } else {
-    const type = typeof variable === datatype;
-    const empy = variable.length != 0;
-
-    return !(type && empy)
-  }
-}
 
 //Procesar los datos del body enviados en la petición
 function body(req, res) {
