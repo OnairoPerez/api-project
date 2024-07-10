@@ -1,11 +1,10 @@
 const { Schema, model, Types } = require('mongoose');
-const { generateCode } = require('../../functions/utils');
 
 //Esquema del documento
 const ProductSchema = new Schema({
     web_id: {
         type: String,
-        default: generateCode(10)
+        require: true
     },
     name: {
         type: String,

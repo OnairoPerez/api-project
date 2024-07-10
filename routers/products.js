@@ -1,4 +1,4 @@
-const { sms, check } = require('../functions/utils');
+const { sms, check, generateCode } = require('../functions/utils');
 const { Types } = require('mongoose'); 
 const express = require('express');
 
@@ -51,6 +51,7 @@ router.post('/products/new', async (req, res) => {
         res.status(409).send(sms('Product already exists'));
       } else {
         const data = {
+          web_id: generateCode(10),
           name: name,
           price: price,
           img: img,
@@ -72,8 +73,9 @@ router.post('/products/new', async (req, res) => {
         //Guardar documento
         product.save()
           .then((document) => {
-            res.send(sms('successful save'));
-            console.log(document)
+            let message = sms('successful save');
+            message["document"] = { web_id: document.web_id }
+            res.send(message);
           })
           .catch(() => {
             res.status(500).send(sms('Internal Server Error'));
