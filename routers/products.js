@@ -110,7 +110,6 @@ router.get('/products/get/:id', (req, res) => {
 router.get('/products/most-purchased', (req, res) => {
   Products.find({}).sort({ purchased: -1 }).limit(4)
     .then(documents => {
-      console.log(documents)
       let message = sms('Successful operation');
       message['documents'] = documents;
       res.send(message);
@@ -119,5 +118,34 @@ router.get('/products/most-purchased', (req, res) => {
       res.status(500).send(sms('Internal Server Error'));
     }});
 });
+
+//Buscador de productos
+router.get('/products/search', (req , res) => {
+  const { query } = req.query;
+
+  //Procesar el parámetro de consulta
+  const excludeWords = ['y', 'de', 'la', 'el', 'un', 'en', 'a', 'al', 'es', 'por'];
+  const lower = query.toLowerCase();
+  const words = lower.split(' ').filter(word => !excludeWords.includes(word));
+
+  //Realizar la búsqueda a través de regex
+  Products.find({
+    $or: words.map(word => ({
+      name: { $regex: word, $options: 'i'}
+    }))
+  })
+    .then(documents => {
+      if(documents) {
+        let message = sms('Successful operation');
+        message['documents'] = documents;
+        res.send(message);
+      } else {
+        res.status(404).send(sms('A product has not been found with the search term indicated.'));
+      }
+    })
+    .catch(() => {
+      res.status(500).send(sms('Internal Server Error'));
+    });
+})
 
 module.exports = router;
