@@ -31,7 +31,7 @@ router.post('/products/new', async (req, res) => {
   }
 
   if (category.length != 24 || brand.length != 24) {
-    res.status(400).send(sms('Sitenxis error in references ID'));
+    res.status(400).send(sms('Sitanxis error in references ID'));
     return
   }
 
@@ -80,6 +80,44 @@ router.post('/products/new', async (req, res) => {
           });
       }
     });
+});
+
+//Obtener un producto por id
+router.get('/products/get/:id', (req, res) => {
+  const id = req.params.id;
+
+  if (id.length != 10) {
+    res.status(400).send(sms('Sitanxis error in ID'));
+    return
+  }
+
+  Products.findOne({ web_id: id }).exec()
+    .then(document => {
+      if (document) {
+        let message = sms('Successful operation')
+        message['document'] = document;
+        res.send(document);
+      } else {
+        res.status(404).send(sms('Incorrect ID'));
+      }
+    })
+    .catch(() => {
+      res.status(500).send(sms('Internal Server Error'));
+    });
+});
+
+//obtener los productos más comprados
+router.get('/products/most-purchased', (req, res) => {
+  Products.find({}).sort({ purchased: -1 }).limit(4)
+    .then(documents => {
+      console.log(documents)
+      let message = sms('Successful operation');
+      message['documents'] = documents;
+      res.send(message);
+    })
+    .catch(() => {{
+      res.status(500).send(sms('Internal Server Error'));
+    }});
 });
 
 module.exports = router;
