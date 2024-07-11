@@ -1,9 +1,14 @@
 const { hashSync, compareSync, genSaltSync } = require('bcrypt');
 const { sms, check } = require('../functions/utils');
+const { Types } = require('mongoose');
 const express = require('express');
 
 //Modelos
 const Auth = require('../database/models/Auth');
+const User = require('../database/models/User');
+
+//variables
+const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const router = express.Router();
 router.use(express.json());
@@ -24,37 +29,123 @@ function body(req, res) {
   return {email:email, password:password}
 }
 
-router.post('/register', (req, res) => {
-	const data = body(req, res);
-  if (data != null) {
-    const {email, password} = data;
-    //Hash para la contraseña
-    const salt = genSaltSync(10);
-    const hash = hashSync(password, salt);
+function checkProperties(data, props = []) {
+  let verify = [];
+  props.forEach((prop) => {
+    const variable = data[prop];
+    verify.push(check(variable));
+  });
 
-    //Buscar el documento en al base de datos por email
-    Auth.findOne({email: email}).exec()
+  return verify.some(Boolean);
+}
+
+function newAccount(id, data) {
+  const { email, password } = data;
+
+  //Hash para la contraseña
+  const salt = genSaltSync(10);
+  const hash = hashSync(password, salt);
+  return new Auth({
+    email: email,
+    password: hash,
+    user: new Types.ObjectId(id)
+  });
+}
+
+router.post('/register', async (req, res) => {
+  const body = req.body;
+  const { credentials, user } = body;
+
+  //Verificar el contenido de los objetos principales
+  if(check(credentials, 'object') || check(user, 'object')) {
+    res.status(400).send(sms('Credentials or user data are missing'));
+    return;
+  }
+
+  //Verificar las propiedad para el objeto credential
+  const propsAccount = ['email', 'password'];
+  if(checkProperties(credentials, propsAccount)) {
+    res.status(400).send(sms('Missing or incorrect data for credentials'));
+    return;
+  }
+
+  //Verificar si el correo es valido
+  if(!regex.test(credentials.email)) {
+    res.status(400).send(sms('The email is not valid'));
+    return;
+  }
+
+  //Verificar las propiedades para el objeto user
+  const propsUser = ['name', 'surname', 'cc', 'address', 'city', 'tel'];
+  let docUser = null;
+  if(!check(user.ref)) {
+    try {
+      let document = await User.findOne({cc: user.ref});
+      if(document) {
+        docUser = document;
+      } else {
+        res.status(404).send(sms('The user reference is incorrect'));
+        return;
+      }
+    } catch {
+      res.status(500).send(sms('Internal Server Error'));
+      return;
+    }
+  } else if (checkProperties(user, propsUser)) {
+    res.status(400).send(sms('Missing or incorrect data for users'));
+    return;
+  }
+
+  //Guardar la información
+  if(docUser != null) {
+    const account = newAccount(docUser._id, credentials);
+    account.save()
       .then(document => {
-        if (document) {
-          res.status(409).send(sms('Account already exists'));
-        } else {
-          //Se crea el objeto cuenta
-          const account = new Auth({
-            email: email,
-            password: hash
-          });
-      
-          //Guardar el documento
-          account.save()
-            .then(() => {
-              res.send(sms('successful save'));
-            })
-            .catch(() => {
-              res.status(500).send(sms('Internal Server Error'));
-              return;
-            });
+        if(document) {
+          res.send(sms('Account registered correctly'));
         }
       })
+      .catch((error) => {
+        if(error.code === 11000) {
+          res.status(409).send(sms('The email is already registered'));
+        } else {
+          res.status(500).send(sms('Internal Server Error'));
+        }
+      });
+  } else {
+    //Crear un nuevo usuario
+    const newUser = new User({
+      name: user.name,
+      surname: user.surname,
+      cc: user.cc,
+      address: user.address,
+      city: user.city,
+      tel: user.tel
+    });
+
+    try {
+      //Comprobar si la información suministrada ya existe en la base de datos
+      let verifyUser = await User.findOne({cc: user.cc}).exec();
+      let verifyAccount = Auth.findOne({email: credentials.email}).exec();
+
+      if(verifyUser || verifyAccount) {
+        res.status(409).send(sms('User or account already exists'));
+        return;
+      } 
+
+      //Guarda el documento de usuario
+      let firtsDoc = await newUser.save();
+
+      //Crear y guardar un cuenta
+      let account = newAccount(firtsDoc._id, credentials);
+      let secondDoc = await account.save();
+
+      if(firtsDoc && secondDoc) {
+        res.send(sms('successful save'));
+      }
+    } catch (error) {
+      res.status(500).send(sms('Internal Server Error'));
+    }
   }
 });
 
@@ -62,6 +153,13 @@ router.post('/auth', (req, res) => {
   const data = body(req, res);
   if (data != null) {
     const {email, password} = data;
+
+    //Verificar si el correo es valido
+    if(!regex.test(email)) {
+      res.status(400).send(sms('The email is not valid'));
+      return;
+    }
+
     //Buscar el documento en al base de datos por email
     Auth.findOne({email: email}).exec()
       .then(document => {

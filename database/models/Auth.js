@@ -1,14 +1,20 @@
-const {Schema, model} = require('mongoose');
+const {Schema, model, Types} = require('mongoose');
 
 //Esquema del documento
 const AuthSchema = new Schema({
     email: {
         type: String,
-        require: true
+        require: true,
+        unique: true,
     },
     password: {
         type: String,
         require: true
+    },
+    user: {
+        type: Types.ObjectId,
+        require: true,
+        ref: 'User'
     }
 });
 
