@@ -9,6 +9,7 @@ const User = require('../database/models/User');
 
 //variables
 const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const propsUser = ['name', 'surname', 'cc', 'address', 'city', 'tel'];
 
 const router = express.Router();
 router.use(express.json());
@@ -52,7 +53,19 @@ function newAccount(id, data) {
   });
 }
 
-router.post('/register', async (req, res) => {
+function newUser(data) {
+  //Crear un nuevo usuario
+  return new User({
+    name: data.name,
+    surname: data.surname,
+    cc: data.cc,
+    address: data.address,
+    city: data.city,
+    tel: data.tel
+  });
+}
+
+router.post('/account/register', async (req, res) => {
   const body = req.body;
   const { credentials, user } = body;
 
@@ -76,7 +89,6 @@ router.post('/register', async (req, res) => {
   }
 
   //Verificar las propiedades para el objeto user
-  const propsUser = ['name', 'surname', 'cc', 'address', 'city', 'tel'];
   let docUser = null;
   if(!check(user.ref)) {
     try {
@@ -114,14 +126,7 @@ router.post('/register', async (req, res) => {
       });
   } else {
     //Crear un nuevo usuario
-    const newUser = new User({
-      name: user.name,
-      surname: user.surname,
-      cc: user.cc,
-      address: user.address,
-      city: user.city,
-      tel: user.tel
-    });
+    const objUser = newUser(user);
 
     try {
       //Comprobar si la información suministrada ya existe en la base de datos
@@ -134,7 +139,7 @@ router.post('/register', async (req, res) => {
       } 
 
       //Guarda el documento de usuario
-      let firtsDoc = await newUser.save();
+      let firtsDoc = await objUser.save();
 
       //Crear y guardar un cuenta
       let account = newAccount(firtsDoc._id, credentials);
@@ -149,7 +154,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/auth', (req, res) => {
+router.post('/account/auth', (req, res) => {
   const data = body(req, res);
   if (data != null) {
     const {email, password} = data;
@@ -175,6 +180,34 @@ router.post('/auth', (req, res) => {
         }
       });
   }
-})
+});
+
+router.post('/new-user' , async (req, res) => {
+  let body = req.body;
+
+  //Verificar propiedades
+  if(checkProperties(body, propsUser)) {
+    res.status(400).send(sms('Missing or incorrect data for user'));
+    return;
+  }
+
+  try {
+    //Comprobar si existe en la base de datos
+    const verify = await User.findOne({ cc: body.cc }).exec();
+    if (verify) {
+      res.status(409).send(sms('User already exists'));
+    }
+
+    //Creamos y guardamos un usuario
+    const user = newUser(body);
+    const document = user.save()
+
+    if(document) {
+      res.send(sms('successful save'));
+    }
+  } catch {
+    res.status(500).send(sms('Internal Server Error'));
+  }
+});
 
 module.exports = router;
