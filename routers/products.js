@@ -126,7 +126,7 @@ router.get('/products/search', (req , res) => {
   const { query } = req.query;
 
   //Procesar el parámetro de consulta
-  const excludeWords = ['y', 'de', 'la', 'el', 'un', 'en', 'a', 'al', 'es', 'por'];
+  const excludeWords = ['y', 'de', 'la', 'el', 'un', 'en', 'a', 'al', 'es', 'por', 'para'];
   const lower = query.toLowerCase();
   const words = lower.split(' ').filter(word => !excludeWords.includes(word));
 
@@ -149,5 +149,43 @@ router.get('/products/search', (req , res) => {
       res.status(500).send(sms('Internal Server Error'));
     });
 })
+
+//Actualizar la información de un producto
+router.put('/products/update/:id', (req, res) => {
+  let id = req.params.id;
+  let body = req.body;
+
+  //Definimos las propiedades que puede contener el objeto enviado por el cliente
+  let properties = ['name', 'img', 'price', 'purchased', 'stock', 'category', 'brand'];
+  let verify = [];
+
+  //Guardamos las comprobaciones en un arreglo
+  for (const [key, value] of Object.entries(body)) {
+    verify.push(properties.includes(key));
+
+    let datatype = key === 'price' || key === 'purchased' || key === 'stock' ? 'number' : 'string';
+    verify.push(!check(value, datatype));
+  }
+
+  //Si las propiedad son correcta se realiza la actualización
+  if (verify.every(Boolean)) {
+    Products.findOneAndUpdate({  web_id: id }, body, { new: true })
+      .then(document => {
+        if(!document) {
+          res.status(404).send(sms('Document not found'));
+        } else {
+          let message = sms('Updated article');
+          message['document'] = document;  
+          res.send(message);
+        }
+      })
+      .catch((error) => {
+        res.status(500).send(sms('Internal Server Error'));
+        console.log(error);
+      });
+  } else {
+    res.status(400).send(sms('Incorrect property or value type'));
+  }
+});
 
 module.exports = router;
