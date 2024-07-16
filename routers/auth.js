@@ -131,7 +131,7 @@ router.post('/account/register', async (req, res) => {
     try {
       //Comprobar si la información suministrada ya existe en la base de datos
       let verifyUser = await User.findOne({cc: user.cc}).exec();
-      let verifyAccount = Auth.findOne({email: credentials.email}).exec();
+      let verifyAccount = await Auth.findOne({email: credentials.email}).exec();
 
       if(verifyUser || verifyAccount) {
         res.status(409).send(sms('User or account already exists'));
@@ -196,6 +196,7 @@ router.post('/new-user' , async (req, res) => {
     const verify = await User.findOne({ cc: body.cc }).exec();
     if (verify) {
       res.status(409).send(sms('User already exists'));
+      return;
     }
 
     //Creamos y guardamos un usuario
